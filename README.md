@@ -1,2 +1,2 @@
-*/THIS IS THE README.md FPOR THE ERSP_Shang_Group REPO!/*
-
+THIS IS THE README.md FOR THE ERSP_Shang_Group REPO!
+Make a change
