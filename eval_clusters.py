@@ -3,7 +3,7 @@ import math
 import os
 import pickle as pk
 import numpy as np
-import pandas as pd
+# import pandas as pd
 from sklearn.metrics import confusion_matrix
 
 def main(args):
@@ -22,7 +22,7 @@ def main(args):
     '''
     dataset_path = os.path.expanduser("~/XClass/data/datasets/")
     with open(os.path.join(dataset_path, args.dataset_name, "labels.txt"), "r") as f:
-        lines = f.readlines()
+        lines = np.loadtxt(f)
     label = np.array(lines) # I manually checked the length of doc_to_class using Malcolm's script, 
                             # its length is the same as the number of labels(the length of the file) in the labels.txt file
 
@@ -45,14 +45,10 @@ def main(args):
     '''
     con_matrx = confusion_matrix(label, doc_to_class, labels=list(range(num_labels)))
     print(con_matrx)
-
-    '''
-        I also stores the true/predicted labels in the dataframe df in case we want to calculate something else.
-        Below I simply calculated the accuracy of the gmm prediction by comparing the two Series index by index
-        the columns of the dataframe are named 'true_labels' and 'gmm_predictions'.
-    '''
-    df = pd.DataFrame(np.array(label, doc_to_class), columns=['true_labels', 'gmm_predictions'])
-    percent_correct = ((df['true_labels'] == df['gmm_predictions']).sum() / df.shape[0]) * 100
+    disp = ConfusionMatrixDisplay(confusion_matrix=con_matrx, display_labels=classes)
+    disp.plot()
+    plt.title(f"{args.dataset_name} original")
+    plt.show()
 
 
 if __name__ == '__main__':
