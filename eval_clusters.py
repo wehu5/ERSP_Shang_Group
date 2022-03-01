@@ -13,7 +13,7 @@ def main(args):
         loads the clustered data from the gmm pickle file and obtain the predicted labels of the documents \n
         Stores in the doc_to_class variable
     '''
-    cluster_data_dir = f"~/XClass/data/intermediate_data/{args.dataset_name}/data.pca64.clusgmm.bbu-12.mixture-100.42.pk"
+    cluster_data_dir = os.path.expanduser(f"~/XClass/data/intermediate_data/{args.dataset_name}/data.pca64.clusgmm.bbu-12.mixture-100.42.pk")
     with open(cluster_data_dir, "rb") as f:
         cluster_data = pk.load(f)
         doc_to_class = cluster_data["documents_to_class"]
