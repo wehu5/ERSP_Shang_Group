@@ -5,6 +5,7 @@ import pickle as pk
 import numpy as np
 # import pandas as pd
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
 
 def main(args):
 
