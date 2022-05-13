@@ -88,6 +88,9 @@ def main(dataset_name,
         num_classes = len(class_names)
         print(class_names)
 
+    with open(os.path.join(data_dir, f"tokenization_lm-{lm_type}-{layer}.pk"), "rb") as f:
+        tokenization_info = pk.load(f)["tokenization_info"]
+
     # huh?
     with open(os.path.join(data_dir, f"document_repr_lm-{lm_type}-{document_repr_type}.pk"), "rb") as f:
         dictionary = pk.load(f)
@@ -122,7 +125,7 @@ def main(dataset_name,
 
     # keyword generation
     # ->
-    cluster_keywords = generate_keywords(low_conf_doc_predictions, num_expected)
+    cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, num_expected)
 
     for keywords in cluster_keywords:
         print("Cluster Words :")

@@ -17,10 +17,7 @@ from tqdm import tqdm
 from operator import itemgetter
 from collections import defaultdict
 
-def generate_keywords(doc_to_class, num_clusters):
-    
-    with open(os.path.join(data_folder, f"tokenization_lm-{lm_type}-{layer}.pk"), "rb") as f:
-        tokenization_info = pk.load(f)["tokenization_info"]
+def generate_keywords(tokenization_info, doc_to_class, num_clusters):
     
     docs = [x[0] for x in tokenization_info]
 
