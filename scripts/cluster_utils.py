@@ -113,7 +113,7 @@ def generate_keywords(doc_to_class, num_clusters):
         # Sort so most frequent keywords come first:
         key_to_docFreqs.sort(key=itemgetter(1), reverse=True)
         # Print info
-        print(f"Class/cluster #{i} has {len(key_to_docFreqs) generated keywords.}")
+        print(f"Class/cluster #{i} has {len(key_to_docFreqs)} generated keywords.")
         print(f"Top keywords are: {key_to_docFreqs[0:10]}")
         for j in range(10):
             keyword_lists[i].append(key_to_docFreqs[j][0])
