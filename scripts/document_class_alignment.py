@@ -187,7 +187,7 @@ def main(dataset_name,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset_name", default="nyt_topics")
+    parser.add_argument("--dataset_name", default="NYT-Topics")
     parser.add_argument("--pca", type=int, default=64, help="number of dimensions projected to in PCA, "
                                                             "-1 means not doing PCA.")
     parser.add_argument("--cluster_method", choices=["gmm", "kmeans"], default="gmm")
