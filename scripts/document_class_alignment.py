@@ -76,7 +76,7 @@ def main(dataset_name,
     save_dict_data["document_repr_type"] = document_repr_type
     save_dict_data["random_state"] = random_state
 
-    naming_suffix = f"pca{pca}.clus{cluster_method}.{lm_type}.{document_repr_type}.{random_state}"
+    naming_suffix = f"pca{pca}.clus{cluster_method}.{lm_type}-{layer}.{document_repr_type}.{random_state}"
     print(f"naming_suffix: {naming_suffix}")
 
     data_dir = os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, dataset_name)
@@ -92,7 +92,7 @@ def main(dataset_name,
         tokenization_info = pk.load(f)["tokenization_info"]
 
     # huh?
-    with open(os.path.join(data_dir, f"document_repr_lm-{lm_type}-{document_repr_type}.pk"), "rb") as f:
+    with open(os.path.join(data_dir, f"document_repr_lm-{lm_type}-{layer}-{document_repr_type}.pk"), "rb") as f:
         dictionary = pk.load(f)
         document_representations = dictionary["document_representations"]
         class_representations = dictionary["class_representations"]
@@ -157,6 +157,7 @@ def main(dataset_name,
 
         # put together document representations from high + raw from low, excluding ill performing
         # -> final_doc_representations
+        print("remove later")
 
     if cluster_method == 'gmm':
 
@@ -209,7 +210,7 @@ if __name__ == '__main__':
     parser.add_argument("--cluster_method", choices=["gmm", "kmeans"], default="gmm")
     parser.add_argument("--rep_type", choices=["generated", "raw"], default="generated")
     # language model + layer
-    parser.add_argument("--lm_type", default="bbu-12")
+    parser.add_argument("--lm_type", default="bbu")
     # attention mechanism + T
     parser.add_argument("--document_repr_type", default="mixture-100")
     parser.add_argument("--attention_mechanism", type=str, default="mixture")
