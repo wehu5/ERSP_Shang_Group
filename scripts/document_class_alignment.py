@@ -20,13 +20,46 @@ from utils import (INTERMEDIATE_DATA_FOLDER_PATH, cosine_similarity_embedding,
                    cosine_similarity_embeddings, evaluate_predictions,
                    most_common, pairwise_distances)
 
+#Partitions document representations into low and high confidence groups
+def partitionDataset(threshold, doc_reps, known_class_reps):
+    #Matrix of cosine similarities with respect to known class representations
+    cosine_similarities = cosine_similarity_embeddings(doc_reps, known_class_reps) 
+    document_class_assignment = np.argmax(cosine_similarities, axis=1) #Cosine similarity predictions
+    low_conf_docs = []
+    high_conf_docs = []
+    #Closest of the known classes based on similarity between doc_rep and known_class_reps.
+    #Note: uses indices relative to known_class_reps, so the indices don't make sense when
+    #referring to all original classes.    
+    for i,doc_rep in enumerate(doc_reps):
+        doc_tuple = (doc_rep, i)
+        cosine_predicted_class = document_class_assignment[i] #Prediction out of known classes
+        doc_max_similarity = cosine_similarities[i][cosine_predicted_class] #Gets actual similarity
+        if doc_max_similarity >= threshold:
+            high_conf_docs.append(doc_tuple)
+        else:
+            low_conf_docs.append(doc_tuple)
+
+    #Check partition sizes
+    print(f"Confidence threshold = {threshold}")
+    print(f"Number of low confidence docs = {len(low_conf_docs)}")
+    print(f"Number of high confidence docs = {len(high_conf_docs)}")
+
+    return low_conf_docs, high_conf_docs, document_class_assignment
+
+def replaceWithRaw(low_conf_docs, raw_doc_reps):
+    raw_low_conf_docs = []
+    for doc, index in low_conf_docs:
+        raw_low_conf_docs.append(raw_doc_reps[index])
+    return raw_low_conf_docs
 
 def main(dataset_name,
          pca,
          cluster_method,
+         rep_method,
          lm_type,
          document_repr_type,
-         random_state):
+         random_state,
+         num_expected):
     save_dict_data = {}
 
     # pca = 0 means no pca
@@ -40,10 +73,10 @@ def main(dataset_name,
     save_dict_data["random_state"] = random_state
 
     naming_suffix = f"pca{pca}.clus{cluster_method}.{lm_type}.{document_repr_type}.{random_state}"
-    print(naming_suffix)
+    print(f"naming_suffix: {naming_suffix}")
 
     data_dir = os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, dataset_name)
-    print(data_dir)
+    print(f"data_dir: {data_dir}")
 
     with open(os.path.join(data_dir, "dataset.pk"), "rb") as f:
         dictionary = pk.load(f)
@@ -51,49 +84,82 @@ def main(dataset_name,
         num_classes = len(class_names)
         print(class_names)
 
+    # huh?
     with open(os.path.join(data_dir, f"document_repr_lm-{lm_type}-{document_repr_type}.pk"), "rb") as f:
         dictionary = pk.load(f)
         document_representations = dictionary["document_representations"]
         class_representations = dictionary["class_representations"]
+        raw_document_representations = dictionary["raw_document_representations"]
         repr_prediction = np.argmax(cosine_similarity_embeddings(document_representations, class_representations),
                                     axis=1)
         save_dict_data["repr_prediction"] = repr_prediction
 
+
     if do_pca:
         _pca = PCA(n_components=pca, random_state=random_state)
         document_representations = _pca.fit_transform(document_representations)
+        raw_document_representations = _pca.transform(raw_document_representations)
         class_representations = _pca.transform(class_representations)
         print(f"Explained variance: {sum(_pca.explained_variance_ratio_)}")
 
+    # partition dataset
+    low_conf_docs, high_conf_docs, document_class_assignment = partitionDataset(0.10, document_representations, class_representations)
+
+    #Cluster low-confidence documents
+    low_conf_doc_reps = replaceWithRaw(low_conf_docs, raw_document_representations)
+    kmeans = KMeans(n_clusters=num_expected, random_state=random_state, init='k-means++')
+    kmeans.fit(low_conf_doc_reps)
+
+    # keyword generation
+
+    # class representations building -> final_class_representations
+
+    if rep_method == 'new_rep':
+
+        # put together new document representations from all documents
+        # these are class aligned with the new classes
+
+        # do_pca again
+
+        # -> final_doc_representations
+        
+    elif rep_method == "raw_rep":
+
+        # put together document representations from high + raw from low, excluding ill performing
+        # -> final_doc_representations
+
     if cluster_method == 'gmm':
-        cosine_similarities = cosine_similarity_embeddings(document_representations, class_representations)
+
+        cosine_similarities = cosine_similarity_embeddings(final_doc_representations, final_class_representations)
         document_class_assignment = np.argmax(cosine_similarities, axis=1)
-        document_class_assignment_matrix = np.zeros((document_representations.shape[0], num_classes))
-        for i in range(document_representations.shape[0]):
+        document_class_assignment_matrix = np.zeros((final_doc_representations.shape[0], num_expected))
+        for i in range(final_doc_representations.shape[0]):
             document_class_assignment_matrix[i][document_class_assignment[i]] = 1.0
 
-        gmm = GaussianMixture(n_components=num_classes, covariance_type='tied',
+        gmm = GaussianMixture(n_components=num_expected, covariance_type='tied',
                               random_state=random_state,
                               n_init=999, warm_start=True)
         gmm.converged_ = "HACK"
 
-        gmm._initialize(document_representations, document_class_assignment_matrix)
+        gmm._initialize(final_doc_representations, document_class_assignment_matrix)
         gmm.lower_bound_ = -np.infty
-        gmm.fit(document_representations)
+        gmm.fit(final_doc_representations)
 
-        documents_to_class = gmm.predict(document_representations)
+        documents_to_class = gmm.predict(final_doc_representations)
         centers = gmm.means_
         save_dict_data["centers"] = centers
-        distance = -gmm.predict_proba(document_representations) + 1
-    elif cluster_method == 'kmeans':
-        kmeans = KMeans(n_clusters=num_classes, init=class_representations, random_state=random_state)
-        kmeans.fit(document_representations)
+        distance = -gmm.predict_proba(final_doc_representations) + 1
 
-        documents_to_class = kmeans.predict(document_representations)
+    elif cluster_method == 'kmeans':
+
+        kmeans = KMeans(n_clusters=num_expected, init=final_class_representations, random_state=random_state)
+        kmeans.fit(final_doc_representations)
+
+        documents_to_class = kmeans.predict(final_doc_representations)
         centers = kmeans.cluster_centers_
         save_dict_data["centers"] = centers
-        distance = np.zeros((document_representations.shape[0], centers.shape[0]), dtype=float)
-        for i, _emb_a in enumerate(document_representations):
+        distance = np.zeros((final_doc_representations.shape[0], centers.shape[0]), dtype=float)
+        for i, _emb_a in enumerate(final_doc_representations):
             for j, _emb_b in enumerate(centers):
                 distance[i][j] = np.linalg.norm(_emb_a - _emb_b)
 
@@ -111,12 +177,14 @@ if __name__ == '__main__':
     parser.add_argument("--pca", type=int, default=64, help="number of dimensions projected to in PCA, "
                                                             "-1 means not doing PCA.")
     parser.add_argument("--cluster_method", choices=["gmm", "kmeans"], default="gmm")
+    parser.add_argument("--rep_method", choices=["new_rep", "raw_rep"], default="new_rep")
     # language model + layer
     parser.add_argument("--lm_type", default="bbu-12")
     # attention mechanism + T
     parser.add_argument("--document_repr_type", default="mixture-100")
     parser.add_argument("--random_state", type=int, default=42)
+    parser.add_argument("--num_expected", type=int, default=9)
 
     args = parser.parse_args()
     print(vars(args))
-    main(args.dataset_name, args.pca, args.cluster_method, args.lm_type, args.document_repr_type, args.random_state)
+    main(args.dataset_name, args.pca, args.cluster_method, args.rep_method, args.lm_type, args.document_repr_type, args.random_state, args.num_expected)

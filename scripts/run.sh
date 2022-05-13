@@ -4,7 +4,6 @@ gpu=$1
 dataset=$2
 CUDA_VISIBLE_DEVICES=${gpu} python static_representations.py --dataset_name ${dataset}
 CUDA_VISIBLE_DEVICES=${gpu} python document_representations.py --dataset_name ${dataset}
-CUDA_VISIBLE_DEVICES=${gpu} python document_representations.py --dataset_name ${dataset} --attention_mechanism none
 python document_class_alignment.py --dataset_name ${dataset}
 
 

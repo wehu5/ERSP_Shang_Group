@@ -202,6 +202,8 @@ def main(args):
     model = model_class.from_pretrained(pretrained_weights, output_hidden_states=True)
     model.eval()
     model.cuda()
+
+    # get class-oriented representations
     document_representations = []
     for i, _tokenization_info in tqdm(enumerate(tokenization_info), total=len(tokenization_info)):
         document_representation = weight_sentence(model,
@@ -212,6 +214,18 @@ def main(args):
                                                   args.layer)
         document_representations.append(document_representation)
     document_representations = np.array(document_representations)
+    # get raw representations
+    raw_document_representations = []
+    for i, _tokenization_info in tqdm(enumerate(tokenization_info), total=len(tokenization_info)):
+        raw_document_representation = weight_sentence(model,
+                                                  vocab,
+                                                  _tokenization_info,
+                                                  class_representations,
+                                                  none,
+                                                  args.layer)
+        raw_document_representations.append(document_representation)
+    raw_document_representations = np.array(raw_document_representations)
+    
     print("Finish getting document representations")
     with open(os.path.join(data_folder,
                            f"document_repr_lm-{args.lm_type}-{args.layer}-{args.attention_mechanism}-{args.T}.pk"),
@@ -220,6 +234,7 @@ def main(args):
             "class_words": class_words,
             "class_representations": class_representations,
             "document_representations": document_representations,
+            "raw_document_representations": raw_document_representations,
         }, f, protocol=4)
 
 
