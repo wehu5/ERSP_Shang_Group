@@ -114,8 +114,21 @@ def main(dataset_name,
     kmeans = KMeans(n_clusters=num_expected, random_state=random_state, init='k-means++')
     kmeans.fit(low_conf_doc_reps)
 
+    # Get kmeans predictions, cluster centers
+    low_conf_doc_predictions = kmeans.predict(low_conf_doc_reps)
+    
+    #  do we need this? idk
+    low_conf_centers = kmeans.cluster_centers_
+
     # keyword generation
     # ->
+    cluster_keywords = generate_keywords(low_conf_doc_predictions, num_expected)
+
+    for keywords in cluster_keywords:
+        print("Cluster Words :")
+        print(keywords)
+
+    return
 
     # class representations building 
     # -> final_class_representations

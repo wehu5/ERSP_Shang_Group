@@ -17,13 +17,16 @@ from tqdm import tqdm
 from operator import itemgetter
 from collections import defaultdict
 
-def generate_keywords(tokenization_info, doc_to_class, num_clusters):
+def generate_keywords(doc_to_class, num_clusters):
+    
+    with open(os.path.join(data_folder, f"tokenization_lm-{lm_type}-{layer}.pk"), "rb") as f:
+        tokenization_info = pk.load(f)["tokenization_info"]
+    
     docs = [x[0] for x in tokenization_info]
 
-#     num_clusters = len(classes)
-
+    # num_clusters = len(classes)
     # Sanity-check
-#     print(f"Number of classes = {len(classes)}")
+    # print(f"Number of classes = {len(classes)}")
     print(min(doc_to_class))
     print(len(docs))
     # Prints first 10 words of first doc
