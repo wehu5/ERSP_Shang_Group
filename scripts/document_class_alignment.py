@@ -19,6 +19,8 @@ from tqdm import tqdm
 from utils import (INTERMEDIATE_DATA_FOLDER_PATH, cosine_similarity_embedding,
                    cosine_similarity_embeddings, evaluate_predictions,
                    most_common, pairwise_distances)
+from cluster_utils import (generate_keywords, generate_class_representation, 
+                    generate_doc_representations)
 
 #Partitions document representations into low and high confidence groups
 def partitionDataset(threshold, doc_reps, known_class_reps):
@@ -46,7 +48,7 @@ def partitionDataset(threshold, doc_reps, known_class_reps):
 
     return low_conf_docs, high_conf_docs, document_class_assignment
 
-def replaceWithRaw(low_conf_docs, raw_doc_reps):
+def replace_with_raw(low_conf_docs, raw_doc_reps):
     raw_low_conf_docs = []
     for doc, index in low_conf_docs:
         raw_low_conf_docs.append(raw_doc_reps[index])
@@ -55,9 +57,11 @@ def replaceWithRaw(low_conf_docs, raw_doc_reps):
 def main(dataset_name,
          pca,
          cluster_method,
-         rep_method,
+         rep_type,
          lm_type,
          document_repr_type,
+         attention_mechanism,
+         layer,
          random_state,
          num_expected):
     save_dict_data = {}
@@ -105,25 +109,35 @@ def main(dataset_name,
     # partition dataset
     low_conf_docs, high_conf_docs, document_class_assignment = partitionDataset(0.10, document_representations, class_representations)
 
-    #Cluster low-confidence documents
-    low_conf_doc_reps = replaceWithRaw(low_conf_docs, raw_document_representations)
+    # cluster low-confidence documents
+    low_conf_doc_reps = replace_with_raw(low_conf_docs, raw_document_representations)
     kmeans = KMeans(n_clusters=num_expected, random_state=random_state, init='k-means++')
     kmeans.fit(low_conf_doc_reps)
 
     # keyword generation
+    # ->
 
-    # class representations building -> final_class_representations
+    # class representations building 
+    # -> final_class_representations
 
-    if rep_method == 'new_rep':
+    # MUST DO BELOW
+    # final_class_representations = np.array(final_class_representations)
+
+    if rep_type == 'generated':
 
         # put together new document representations from all documents
         # these are class aligned with the new classes
-
-        # do_pca again
-
         # -> final_doc_representations
+
+        # final_doc_representations = generate_doc_representations(final_class_representations, attention_mechanism, lm_type, layer)
+
+        if do_pca:
+            _pca = PCA(n_components=pca, random_state=random_state)
+            final_doc_representations = _pca.fit_transform(final_doc_representations)
+            final_class_representations = _pca.transform(final_class_representations)
+            print(f"Final explained variance: {sum(_pca.explained_variance_ratio_)}")
         
-    elif rep_method == "raw_rep":
+    elif rep_type == "raw":
 
         # put together document representations from high + raw from low, excluding ill performing
         # -> final_doc_representations
@@ -177,14 +191,16 @@ if __name__ == '__main__':
     parser.add_argument("--pca", type=int, default=64, help="number of dimensions projected to in PCA, "
                                                             "-1 means not doing PCA.")
     parser.add_argument("--cluster_method", choices=["gmm", "kmeans"], default="gmm")
-    parser.add_argument("--rep_method", choices=["new_rep", "raw_rep"], default="new_rep")
+    parser.add_argument("--rep_type", choices=["generated", "raw"], default="generated")
     # language model + layer
     parser.add_argument("--lm_type", default="bbu-12")
     # attention mechanism + T
     parser.add_argument("--document_repr_type", default="mixture-100")
+    parser.add_argument("--attention_mechanism", type=str, default="mixture")
+    parser.add_argument("--layer", type=int, default=12)
     parser.add_argument("--random_state", type=int, default=42)
     parser.add_argument("--num_expected", type=int, default=9)
 
     args = parser.parse_args()
     print(vars(args))
-    main(args.dataset_name, args.pca, args.cluster_method, args.rep_method, args.lm_type, args.document_repr_type, args.random_state, args.num_expected)
+    main(args.dataset_name, args.pca, args.cluster_method, args.rep_type, args.lm_type, args.document_repr_type, args.attention_mechanism, args.layer, args.random_state, args.num_expected)

@@ -223,7 +223,7 @@ def main(args):
                                                   class_representations,
                                                   none,
                                                   args.layer)
-        raw_document_representations.append(document_representation)
+        raw_document_representations.append(raw_document_representation)
     raw_document_representations = np.array(raw_document_representations)
     
     print("Finish getting document representations")
