@@ -15,6 +15,7 @@ import scipy.stats
 from scipy import linalg
 from tqdm import tqdm
 from operator import itemgetter
+from collections import defaultdict
 
 def generate_keywords():
     # TODO
