@@ -112,6 +112,7 @@ def generate_keywords(tokenization_info, doc_to_class, doc_indices, num_clusters
         # Print info
         print(f"Class/cluster #{i} has {len(key_to_docFreqs)} generated keywords.")
         keyword_lists[i] = [ word for (word,freq) in key_to_docFreqs ]
+        keyword_lists[i] = keyword_lists[i][:10]
 
     return keyword_lists    
 
