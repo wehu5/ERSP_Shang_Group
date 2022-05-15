@@ -103,7 +103,7 @@ def generate_keywords(tokenization_info, all_docs_to_class, doc_indices, num_clu
                 cluster_dict.pop(key, None)
 
     #Printing out each cluster-dictionary's highest-frequency keys.
-    keyword_lists = [ [] for cluster in cluster_dicts ]
+    keyword_lists = [ None for cluster in cluster_dicts ]
     for i,cluster_dict in enumerate(cluster_dicts):
         # List of (key, value) tuples for cluster_dict:
         key_to_docFreqs = list(cluster_dict.items())
@@ -111,11 +111,8 @@ def generate_keywords(tokenization_info, all_docs_to_class, doc_indices, num_clu
         key_to_docFreqs.sort(key=itemgetter(1), reverse=True)
         # Print info
         print(f"Class/cluster #{i} has {len(key_to_docFreqs)} generated keywords.")
-        print(f"Top keywords are: {key_to_docFreqs[0:10]}")
-        for j in range(10):
-            keyword_lists[i].append(key_to_docFreqs[j][0])
-    # Sanity-check
-    print(f"keyword_lists.shape = {keyword_lists.shape}")
+        keyword_lists[i] = [ word for (word,freq) in key_to_docFreqs ]
+
     return keyword_lists    
 
 def generate_class_representation(keywords, lm_type, layer):
