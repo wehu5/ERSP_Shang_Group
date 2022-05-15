@@ -79,7 +79,7 @@ def generate_keywords(tokenization_info, doc_to_class, doc_indices, num_clusters
         keys_to_remove = []
         # If key appears in less than args.threshold of documents for this cluster, prepare for removal.
         for key in cluster_dict:
-            if cluster_dict[key]/cluster_sizes[i] <= args.threshold:
+            if cluster_dict[key]/cluster_sizes[i] <= 0.02:
                 keys_to_remove.append(key)
         # Remove keys
         for key in keys_to_remove:
