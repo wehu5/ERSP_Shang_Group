@@ -17,9 +17,9 @@ from tqdm import tqdm
 from operator import itemgetter
 from collections import defaultdict
 
-def generate_keywords(tokenization_info, doc_to_class, num_clusters):
-    
-    docs = [x[0] for x in tokenization_info]
+def generate_keywords(tokenization_info, all_docs_to_class, doc_indices, num_clusters):
+    # get only low-confidence documents
+    docs = [tokenization_info[i][0] for i in doc_indices ]
 
     # num_clusters = len(classes)
     # Sanity-check

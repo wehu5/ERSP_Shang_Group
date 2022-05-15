@@ -125,7 +125,9 @@ def main(dataset_name,
 
     # keyword generation
     # ->
-    cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, num_expected)
+    # Grab indices with respect to all documents of low_conf_docs
+    low_conf_indices = [ doc_tuple[1] for doc_tuple in low_conf_docs ]
+    cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, low_conf_indices, num_expected)
 
     for keywords in cluster_keywords:
         print("Cluster Words :")
