@@ -142,7 +142,7 @@ def generate_doc_representations(class_representations, attention_mechanism,lm_t
     with open(os.path.join(data_folder, f"tokenization_lm-{lm_type}-{layer}.pk"), "rb") as f:
         tokenization_info = pk.load(f)["tokenization_info"]
 
-    model_class, tokenizer_class, pretrained_weights = MODELS[args.lm_type]
+    model_class, tokenizer_class, pretrained_weights = MODELS[lm_type]
     model = model_class.from_pretrained(pretrained_weights, output_hidden_states=True)
     model.eval()
     model.cuda()
