@@ -146,7 +146,7 @@ def main(dataset_name,
     low_conf_class_reps = []
     for keywords in cluster_keywords:
         # May need to check that all generated keywords are in the vocab:
-        new_class_rep = generate_class_representation(keywords, lm_type, layer) 
+        new_class_rep = generate_class_representation(keywords, lm_type, layer, data_dir) 
         low_conf_class_reps.append(new_class_rep)
     if len(low_conf_class_reps) != num_expected:
         print("Incorrect number of generated class representations.")
@@ -172,7 +172,7 @@ def main(dataset_name,
         # these are class aligned with the new classes
         # -> final_doc_representations
 
-        final_doc_representations = generate_doc_representations(final_class_representations, attention_mechanism, lm_type, layer)
+        final_doc_representations = generate_doc_representations(final_class_representations, attention_mechanism, lm_type, layer, data_dir)
 
         if do_pca:
             _pca = PCA(n_components=pca, random_state=random_state)
