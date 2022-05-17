@@ -162,9 +162,12 @@ def main(dataset_name,
     for i in range(num_expected):
         if i not in row_ind:
             generated_class_reps.append(low_conf_class_reps[i])
-    final_class_representations = class_representations_no_pca + generated_class_reps
+    final_class_representations = np.concatenate((class_representations_no_pca, generated_class_reps))
     final_class_representations = np.array(final_class_representations)
     print(f"final_class_representations.shape = {final_class_representations.shape}") # Should be (num_expected)x(768)
+    if final_class_representations.shape != (num_expected,768):
+        print("final_class_representations shape is wrong.")
+        return
 
     if rep_type == 'generated':
 
