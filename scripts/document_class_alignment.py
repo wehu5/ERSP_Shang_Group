@@ -101,13 +101,17 @@ def main(dataset_name,
                                     axis=1)
         save_dict_data["repr_prediction"] = repr_prediction
 
-
+    class_representations_no_pca = class_representations
     if do_pca:
         _pca = PCA(n_components=pca, random_state=random_state)
         document_representations = _pca.fit_transform(document_representations)
         raw_document_representations = _pca.transform(raw_document_representations)
         class_representations = _pca.transform(class_representations)
         print(f"Explained variance: {sum(_pca.explained_variance_ratio_)}")
+        if class_representations_no_pca is class_representations:
+            print("Failed to create independent versions of class_representations before and after applying PCA.")
+        else:
+            print("Independent versions of class_representations after PCA.")
 
     # partition dataset
     low_conf_docs, high_conf_docs, document_class_assignment = partitionDataset(0.10, document_representations, class_representations)
@@ -133,13 +137,34 @@ def main(dataset_name,
         print("Cluster Words :")
         print(keywords)
 
-    return
+#     return
 
     # class representations building 
     # -> final_class_representations
 
     # MUST DO BELOW
-    # final_class_representations = np.array(final_class_representations)
+    low_conf_class_reps = []
+    for keywords in cluster_keywords:
+        # May need to check that all generated keywords are in the vocab:
+        new_class_rep = generate_class_representation(keywords, lm_type, layer) 
+        low_conf_class_reps.append(new_class_rep)
+    if len(low_conf_class_reps) != num_expected:
+        print("Incorrect number of generated class representations.")
+        return
+    low_conf_class_reps = np.array(low_conf_class_reps)
+    
+    # Match generated class representations to known class representations using Hungarian matching
+    from scipy.optimize import linear_sum_assignment as hungarian
+    class_rep_similarity = cosine_similarity_embeddings(low_conf_class_reps, class_representations_no_pca)
+    row_ind, col_ind = hungarian(class_rep_similarity, maximize=True)
+    # row_ind is list of cluster numbers to be tossed out. Remaining row indices correspond to our new class representations
+    generated_class_reps = []
+    for i in range(len(num_expected)):
+        if i not in row_ind:
+            generated_class_reps.append(low_conf_class_reps[i])
+    final_class_representations = class_representations_no_pca + generated_class_reps
+    final_class_representations = np.array(final_class_representations)
+    print(f"final_class_representations.shape = {final_class_representations.shape}") # Should be (num_expected)x(768)
 
     if rep_type == 'generated':
 
@@ -147,7 +172,7 @@ def main(dataset_name,
         # these are class aligned with the new classes
         # -> final_doc_representations
 
-        # final_doc_representations = generate_doc_representations(final_class_representations, attention_mechanism, lm_type, layer)
+        final_doc_representations = generate_doc_representations(final_class_representations, attention_mechanism, lm_type, layer)
 
         if do_pca:
             _pca = PCA(n_components=pca, random_state=random_state)
