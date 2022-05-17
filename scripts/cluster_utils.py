@@ -1,4 +1,4 @@
-from document_representations import weight_sentence
+from document_representations import weight_sentence, average_with_harmonic_series
 from utils import (INTERMEDIATE_DATA_FOLDER_PATH, MODELS,
                    cosine_similarity_embedding, cosine_similarity_embeddings,
                    evaluate_predictions, tensor_to_numpy)
