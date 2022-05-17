@@ -116,7 +116,7 @@ def generate_keywords(tokenization_info, doc_to_class, doc_indices, num_clusters
 
     return keyword_lists    
 
-def generate_class_representation(keywords, lm_type, layer):
+def generate_class_representation(keywords, lm_type, layer, data_folder):
 
     static_repr_path = os.path.join(data_folder, f"static_repr_lm-{lm_type}-{layer}.pk")
     with open(static_repr_path, "rb") as f:
@@ -133,7 +133,7 @@ def generate_class_representation(keywords, lm_type, layer):
 
     return cls_repr
 
-def generate_doc_representations(class_representations, attention_mechanism,lm_type, layer):
+def generate_doc_representations(class_representations, attention_mechanism,lm_type, layer, data_folder):
     
     static_repr_path = os.path.join(data_folder, f"static_repr_lm-{lm_type}-{layer}.pk")
     with open(static_repr_path, "rb") as f:
