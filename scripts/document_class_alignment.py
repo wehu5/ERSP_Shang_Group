@@ -159,7 +159,7 @@ def main(dataset_name,
     row_ind, col_ind = hungarian(class_rep_similarity, maximize=True)
     # row_ind is list of cluster numbers to be tossed out. Remaining row indices correspond to our new class representations
     generated_class_reps = []
-    for i in range(len(num_expected)):
+    for i in range(num_expected):
         if i not in row_ind:
             generated_class_reps.append(low_conf_class_reps[i])
     final_class_representations = class_representations_no_pca + generated_class_reps
