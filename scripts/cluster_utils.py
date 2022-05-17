@@ -126,7 +126,7 @@ def generate_class_representation(keywords, lm_type, layer, data_folder):
 
     print("Finish reading data")
 
-    class_words_representations = [[static_word_representations[word_to_index[word]]]
+    class_words_representations = [static_word_representations[word_to_index[word]]
                                    for word in keywords]
 
     cls_repr = average_with_harmonic_series(class_words_representations)
