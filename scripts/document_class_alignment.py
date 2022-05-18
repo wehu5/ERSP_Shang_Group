@@ -131,7 +131,7 @@ def main(dataset_name,
     # ->
     # Grab indices with respect to all documents of low_conf_docs
     low_conf_indices = [ doc_tuple[1] for doc_tuple in low_conf_docs ]
-    cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, low_conf_indices, num_expected)
+    cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, low_conf_indices, 5 * num_expected)
 
     low_conf_class_reps = []
     for keywords in cluster_keywords:
