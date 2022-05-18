@@ -118,7 +118,7 @@ def main(dataset_name,
 
     # cluster low-confidence documents
     low_conf_doc_reps = replace_with_raw(low_conf_docs, raw_document_representations)
-    kmeans = KMeans(n_clusters=num_expected, random_state=random_state, init='k-means++')
+    kmeans = KMeans(n_clusters= (5 * num_expected), random_state=random_state, init='k-means++')
     kmeans.fit(low_conf_doc_reps)
 
     # Get kmeans predictions, cluster centers
@@ -133,21 +133,22 @@ def main(dataset_name,
     low_conf_indices = [ doc_tuple[1] for doc_tuple in low_conf_docs ]
     cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, low_conf_indices, num_expected)
 
+    low_conf_class_reps = []
     for keywords in cluster_keywords:
         print("Cluster Words :")
         print(keywords)
 
-#     return
+    return
 
-    # class representations building 
-    # -> final_class_representations
-
-    # MUST DO BELOW
     low_conf_class_reps = []
     for keywords in cluster_keywords:
+        # class representations building 
+        # -> final_class_representations
+
         # May need to check that all generated keywords are in the vocab:
         new_class_rep = generate_class_representation(keywords, lm_type, layer, data_dir) 
         low_conf_class_reps.append(new_class_rep)
+
     if len(low_conf_class_reps) != num_expected:
         print("Incorrect number of generated class representations.")
         return
