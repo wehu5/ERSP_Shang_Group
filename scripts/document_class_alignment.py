@@ -124,7 +124,7 @@ def main(dataset_name,
     gmm.fit(low_conf_doc_reps) 
 
     # Get GMM predictions, cluster centers
-    low_conf_predictions = gmm.predict(low_conf_doc_reps) 
+    low_conf_doc_predictions = gmm.predict(low_conf_doc_reps) 
 
     # keyword generation
     # ->
