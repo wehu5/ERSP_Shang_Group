@@ -118,7 +118,7 @@ def main(dataset_name,
 
     # cluster low-confidence documents
     low_conf_doc_reps = replace_with_raw(low_conf_docs, raw_document_representations)
-    kmeans = KMeans(n_clusters= (5 * num_expected), random_state=random_state, init='k-means++')
+    kmeans = KMeans(n_clusters= (num_expected), random_state=random_state, init='k-means++')
     kmeans.fit(low_conf_doc_reps)
 
     # Get kmeans predictions, cluster centers
@@ -131,17 +131,13 @@ def main(dataset_name,
     # ->
     # Grab indices with respect to all documents of low_conf_docs
     low_conf_indices = [ doc_tuple[1] for doc_tuple in low_conf_docs ]
-    cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, low_conf_indices, 5 * num_expected)
+    cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, low_conf_indices, num_expected)
 
     low_conf_class_reps = []
     for keywords in cluster_keywords:
         print("Cluster Words :")
         print(keywords)
 
-    return
-
-    low_conf_class_reps = []
-    for keywords in cluster_keywords:
         # class representations building 
         # -> final_class_representations
 
