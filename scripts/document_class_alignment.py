@@ -113,19 +113,18 @@ def main(dataset_name,
         else:
             print("Independent versions of class_representations after PCA.")
 
-    # partition dataset
+    # Partitioning dataset by taking only the tails of the distribution
     low_conf_docs, high_conf_docs, document_class_assignment = partitionDataset(0.10, document_representations, class_representations)
-
+    print(f"Number of low-conf docs: {len(low_conf_docs)}")
+    print(f"Number of high-conf docs: {len(high_conf_docs)}\n")
+    
     # cluster low-confidence documents
     low_conf_doc_reps = replace_with_raw(low_conf_docs, raw_document_representations)
-    kmeans = KMeans(n_clusters=num_expected, random_state=random_state, init='k-means++')
-    kmeans.fit(low_conf_doc_reps)
+    gmm = GaussianMixture(n_components=num_expected, covariance_type='full', random_state=random_state, n_init=30, warm_start=False, verbose=1)
+    gmm.fit(low_conf_doc_reps) 
 
-    # Get kmeans predictions, cluster centers
-    low_conf_doc_predictions = kmeans.predict(low_conf_doc_reps)
-    
-    #  do we need this? idk
-    low_conf_centers = kmeans.cluster_centers_
+    # Get GMM predictions, cluster centers
+    low_conf_predictions = gmm.predict(low_conf_doc_reps) 
 
     # keyword generation
     # ->
@@ -136,8 +135,6 @@ def main(dataset_name,
     for keywords in cluster_keywords:
         print("Cluster Words :")
         print(keywords)
-
-#     return
 
     # class representations building 
     # -> final_class_representations
@@ -196,6 +193,9 @@ def main(dataset_name,
         document_class_assignment_matrix = np.zeros((final_doc_representations.shape[0], num_expected))
         for i in range(final_doc_representations.shape[0]):
             document_class_assignment_matrix[i][document_class_assignment[i]] = 1.0
+            
+        document_class_assignment_summary = np.sum(document_class_assignment_matrix, axis=0)
+        print(f"GMM number of initializations per class: {document_class_assignment_summary}")
 
         gmm = GaussianMixture(n_components=num_expected, covariance_type='tied',
                               random_state=random_state,
@@ -227,7 +227,7 @@ def main(dataset_name,
     save_dict_data["documents_to_class"] = documents_to_class
     save_dict_data["distance"] = distance
 
-    with open(os.path.join(data_dir, f"data.{naming_suffix}.pk"), "wb") as f:
+    with open(os.path.join(data_dir, f"data.{naming_suffix}_lowconfGMM.pk"), "wb") as f:
         pk.dump(save_dict_data, f)
 
 
