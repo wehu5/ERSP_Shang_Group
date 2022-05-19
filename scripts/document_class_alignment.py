@@ -91,7 +91,6 @@ def main(dataset_name,
     with open(os.path.join(data_dir, f"tokenization_lm-{lm_type}-{layer}.pk"), "rb") as f:
         tokenization_info = pk.load(f)["tokenization_info"]
 
-    # huh?
     with open(os.path.join(data_dir, f"document_repr_lm-{lm_type}-{layer}-{document_repr_type}.pk"), "rb") as f:
         dictionary = pk.load(f)
         document_representations = dictionary["document_representations"]
@@ -101,6 +100,10 @@ def main(dataset_name,
                                     axis=1)
         save_dict_data["repr_prediction"] = repr_prediction
 
+    with open(os.path.join(data_dir, f"document_repr_lm-{lm_type}-{layer}-{document_repr_type}.pk"), "rb") as f:
+        dictionary = pk.load(f)
+        vocab_words = dictionary["vocab_words"]
+        
     class_representations_no_pca = class_representations
     if do_pca:
         _pca = PCA(n_components=pca, random_state=random_state)
@@ -113,14 +116,15 @@ def main(dataset_name,
         else:
             print("Independent versions of class_representations after PCA.")
 
-    # Partitioning dataset by taking only the tails of the distribution
+    # Partitioning dataset 
     low_conf_docs, high_conf_docs, document_class_assignment = partitionDataset(0.10, document_representations, class_representations)
     print(f"Number of low-conf docs: {len(low_conf_docs)}")
     print(f"Number of high-conf docs: {len(high_conf_docs)}\n")
     
     # cluster low-confidence documents
+    print("Clustering lowconf gen1")
     low_conf_doc_reps = replace_with_raw(low_conf_docs, raw_document_representations)
-    gmm = GaussianMixture(n_components=num_expected, covariance_type='full', random_state=random_state, n_init=30, warm_start=False, verbose=1)
+    gmm = GaussianMixture(n_components=num_expected, covariance_type='tied', random_state=random_state, n_init=30, warm_start=False, verbose=0)
     gmm.fit(low_conf_doc_reps) 
 
     # Get GMM predictions, cluster centers
@@ -130,7 +134,7 @@ def main(dataset_name,
     # ->
     # Grab indices with respect to all documents of low_conf_docs
     low_conf_indices = [ doc_tuple[1] for doc_tuple in low_conf_docs ]
-    cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, low_conf_indices, num_expected)
+    cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, low_conf_indices, num_expected, vocab_words)
 
     for keywords in cluster_keywords:
         print("Cluster Words :")
@@ -140,6 +144,7 @@ def main(dataset_name,
     # -> final_class_representations
 
     # MUST DO BELOW
+    print("Generating lowconf class reps gen1")
     low_conf_class_reps = []
     for keywords in cluster_keywords:
         # May need to check that all generated keywords are in the vocab:
@@ -151,6 +156,7 @@ def main(dataset_name,
     low_conf_class_reps = np.array(low_conf_class_reps)
     
     # Match generated class representations to known class representations using Hungarian matching
+    print("Choosing new class reps gen1")
     from scipy.optimize import linear_sum_assignment as hungarian
     class_rep_similarity = cosine_similarity_embeddings(low_conf_class_reps, class_representations_no_pca)
     row_ind, col_ind = hungarian(class_rep_similarity, maximize=True)
@@ -171,14 +177,18 @@ def main(dataset_name,
         # put together new document representations from all documents
         # these are class aligned with the new classes
         # -> final_doc_representations
-
+        print("Generating doc reps gen1")
         final_doc_representations = generate_doc_representations(final_class_representations, attention_mechanism, lm_type, layer, data_dir)
-
+        print("Saving gen1 representations")
+        save_dict_data["class_reps_gen1"] = final_class_representations
+        save_dict_data["doc_reps_gen1"] = final_doc_representations
         if do_pca:
+            print("PCA on gen1 class/doc reps")
             _pca = PCA(n_components=pca, random_state=random_state)
             final_doc_representations = _pca.fit_transform(final_doc_representations)
             final_class_representations = _pca.transform(final_class_representations)
             print(f"Final explained variance: {sum(_pca.explained_variance_ratio_)}")
+        
         
     elif rep_type == "raw":
 
