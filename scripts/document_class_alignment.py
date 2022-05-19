@@ -100,7 +100,7 @@ def main(dataset_name,
                                     axis=1)
         save_dict_data["repr_prediction"] = repr_prediction
 
-    with open(os.path.join(data_dir, f"document_repr_lm-{lm_type}-{layer}-{document_repr_type}.pk"), "rb") as f:
+    with open(os.path.join(data_dir, f"static_repr_lm-{lm_type}-{layer}.pk"), "rb") as f:
         dictionary = pk.load(f)
         vocab_words = dictionary["vocab_words"]
         
@@ -237,7 +237,7 @@ def main(dataset_name,
     save_dict_data["documents_to_class"] = documents_to_class
     save_dict_data["distance"] = distance
 
-    with open(os.path.join(data_dir, f"data.{naming_suffix}_lowconfGMM.pk"), "wb") as f:
+    with open(os.path.join(data_dir, f"data.{naming_suffix}_lowconfGMM_improvematching.pk"), "wb") as f:
         pk.dump(save_dict_data, f)
 
 
