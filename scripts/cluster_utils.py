@@ -116,7 +116,7 @@ def generate_class_representation(keywords, lm_type, layer, data_folder):
         static_word_representations = vocab["static_word_representations"]
         word_to_index = vocab["word_to_index"]
 
-    print("Finish reading data")
+#     print("Finish reading data")
 
     class_words_representations = [static_word_representations[word_to_index[word]]
                                    for word in keywords]
