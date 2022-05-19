@@ -157,14 +157,20 @@ def main(dataset_name,
     
     # Match generated class representations to known class representations using Hungarian matching
     print("Choosing new class reps gen1")
-    from scipy.optimize import linear_sum_assignment as hungarian
+#     from scipy.optimize import linear_sum_assignment as hungarian
     class_rep_similarity = cosine_similarity_embeddings(low_conf_class_reps, class_representations_no_pca)
-    row_ind, col_ind = hungarian(class_rep_similarity, maximize=True)
+    cumulative_similarity = np.sum(class_rep_similarity, axis=1)
+    print(f"cumulative cosine similarity per gen1 lowconf classrep: {cumulative_similarity}")
+    for i,keywordList in enumerate(cluster_keywords):
+        print(f"For cluster #{i}, cumulative similarity is {cumulative_similarity[i]} and keywords are {keywordList}")
+    return        
+#     row_ind, col_ind = hungarian(class_rep_similarity, maximize=True)
     # row_ind is list of cluster numbers to be tossed out. Remaining row indices correspond to our new class representations
     generated_class_reps = []
     for i in range(num_expected):
         if i not in row_ind:
             generated_class_reps.append(low_conf_class_reps[i])
+            print(f"Keeping cluster #{i} with keywords: {cluster_keywords[i]}")
     final_class_representations = np.concatenate((class_representations_no_pca, generated_class_reps))
     final_class_representations = np.array(final_class_representations)
     print(f"final_class_representations.shape = {final_class_representations.shape}") # Should be (num_expected)x(768)
