@@ -162,10 +162,9 @@ def main(dataset_name,
         print(f"Matching new class reps gen{gen}")
         from scipy.optimize import linear_sum_assignment as hungarian
         class_rep_similarity = cosine_similarity_embeddings(low_conf_class_reps, class_representations_no_pca)
-        row_ind, col_ind = hungarian(class_rep_similarity, maximize=True)
-    #     for i,keywordList in enumerate(cluster_keywords):
-    #         print(f"For cluster #{i}, min similarity is {min_similarity[i]} and keywords are {keywordList}")
-    #     return        
+        row_ind, col_ind = hungarian(class_rep_similarity, maximize=False)
+        # user_chosen_tossout = [int(x) for x in input("Choose which clusters to toss out:\n").split()]
+        # ^ Allows for user to choose which clusters to keep and which to toss out.
         # row_ind is list of cluster numbers to be tossed out. Remaining row indices correspond to our new class representations
         generated_class_reps = [ low_conf_class_reps[i] for i in range(num_expected) if i not in row_ind ]
         # Finalizing class representations for next generation of document representations
@@ -174,7 +173,6 @@ def main(dataset_name,
             if i not in row_ind:
                 print(f"Keeping cluster #{i} with keywords: {cluster_keywords[i]}")
         print(f"final_class_representations.shape = {final_class_representations.shape}") # Should be (num_expected)x(768)
-    #     final_class_representations = np.array(final_class_representations)
         if final_class_representations.shape != (num_expected,768):
             print("final_class_representations shape is wrong.")
             return
