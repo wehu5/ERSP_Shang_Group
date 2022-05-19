@@ -18,7 +18,6 @@ from operator import itemgetter
 from collections import defaultdict
 
 def generate_keywords(tokenization_info, doc_to_class, doc_indices, num_clusters, vocab_words):
-    print("Generating keywords gen1")
     # get only low-confidence documents
     docs = [tokenization_info[i][0] for i in doc_indices ]
     
