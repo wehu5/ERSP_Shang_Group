@@ -159,10 +159,11 @@ def main(dataset_name,
     print("Choosing new class reps gen1")
 #     from scipy.optimize import linear_sum_assignment as hungarian
     class_rep_similarity = cosine_similarity_embeddings(low_conf_class_reps, class_representations_no_pca)
-    cumulative_similarity = np.sum(class_rep_similarity, axis=1)
-    print(f"cumulative cosine similarity per gen1 lowconf classrep: {cumulative_similarity}")
+#     cumulative_similarity = np.sum(class_rep_similarity, axis=1)
+    max_similarity = np.max(class_rep_similarity, axis=1)
+    print(f"Max cosine similarity per gen1 lowconf classrep: {max_similarity}")
     for i,keywordList in enumerate(cluster_keywords):
-        print(f"For cluster #{i}, cumulative similarity is {cumulative_similarity[i]} and keywords are {keywordList}")
+        print(f"For cluster #{i}, max similarity is {max_similarity[i]} and keywords are {keywordList}")
     return        
 #     row_ind, col_ind = hungarian(class_rep_similarity, maximize=True)
     # row_ind is list of cluster numbers to be tossed out. Remaining row indices correspond to our new class representations
