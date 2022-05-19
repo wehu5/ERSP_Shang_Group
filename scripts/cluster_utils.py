@@ -121,7 +121,8 @@ def generate_class_representation(keywords, lm_type, layer, data_folder):
     class_words_representations = [static_word_representations[word_to_index[word]]
                                    for word in keywords]
 
-    cls_repr = average_with_harmonic_series(class_words_representations)
+#     cls_repr = average_with_harmonic_series(class_words_representations)
+    cls_repr = np.average(class_words_representations, axis=0)
 
     return cls_repr
 
