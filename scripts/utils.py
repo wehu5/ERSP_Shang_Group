@@ -52,7 +52,8 @@ def most_common(L):
 
 
 def evaluate_predictions(true_class, predicted_class, output_to_console=True, return_tuple=False):
-    confusion = confusion_matrix(true_class, predicted_class)
+    labels = ['business','politics','sports','health','education','estate','arts','science','technology']
+    confusion = confusion_matrix(true_class, predicted_class, labels=labels)
     if output_to_console:
         print("-" * 80 + "Evaluating" + "-" * 80)
         print(confusion)
