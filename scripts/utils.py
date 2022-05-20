@@ -67,7 +67,7 @@ def evaluate_predictions(true_class, predicted_class, output_to_console=True, re
     import matplotlib.pyplot as plt
     disp = ConfusionMatrixDisplay(confusion_matrix=confusion)
     disp.plot()
-    plt.title(f"{args.dataset_name}")
+    plt.title("NYT-Topics")
     plt.xticks(rotation=45)
     disp.show()
         
