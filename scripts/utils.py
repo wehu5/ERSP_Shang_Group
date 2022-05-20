@@ -61,6 +61,16 @@ def evaluate_predictions(true_class, predicted_class, output_to_console=True, re
     if output_to_console:
         print("F1 macro: " + str(f1_macro))
         print("F1 micro: " + str(f1_micro))
+        
+    # Adding matplotlib confusion matrix
+    from sklearn.metrics import ConfusionMatrixDisplay
+    import matplotlib.pyplot as plt
+    disp = ConfusionMatrixDisplay(confusion_matrix=confusion)
+    disp.plot()
+    plt.title(f"{args.dataset_name}")
+    plt.xticks(rotation=45)
+    disp.show()
+        
     if return_tuple:
         return confusion, f1_macro, f1_micro
     else:
