@@ -118,21 +118,23 @@ def main(dataset_name,
     print(f"naming_suffix: {naming_suffix}")
     print(f"data_dir: {data_dir}")
     # Import needed data
-    tokenization_info, class_representations, document_representations, raw_document_representations, vocab_words = importData(data_dir, lm_type, layer, document_repr_type)  
-    # Perform PCA on representations    
-    class_representations_no_pca = class_representations
-    if do_pca:
-        _pca = PCA(n_components=pca, random_state=random_state)
-        document_representations        = _pca.fit_transform(document_representations)
-        raw_document_representations    = _pca.transform(raw_document_representations)
-        class_representations           = _pca.transform(class_representations)
-        print(f"Explained variance: {sum(_pca.explained_variance_ratio_)}")
+    tokenization_info, class_representations_no_pca, document_representations_no_pca, raw_document_representations_no_pca, vocab_words = importData(data_dir, lm_type, layer, document_repr_type)  
+#     Perform PCA on representations    
+#     class_representations_no_pca = class_representations
+
 
     '''#####################
      MAIN LOOP: Generations
     #####################'''      
     for gen in range(1,4):
         print(f"Starting generation #{gen}")
+        print(f"Initial PCA for gen{gen}")
+        if do_pca:
+            _pca = PCA(n_components=pca, random_state=random_state)
+            document_representations        = _pca.fit_transform(document_representations_no_pca)
+            raw_document_representations    = _pca.transform(raw_document_representations_no_pca)
+            class_representations           = _pca.transform(class_representations_no_pca)
+            print(f"Explained variance: {sum(_pca.explained_variance_ratio_)}")        
         # Partitioning dataset 
         print(f"Partitioning documents gen{gen}")
         low_conf_docs, high_conf_docs, document_class_assignment = partitionDataset(0.10, document_representations, class_representations)
@@ -148,9 +150,13 @@ def main(dataset_name,
         print(f"Generating keywords gen{gen}")
         low_conf_indices = [ doc_tuple[1] for doc_tuple in low_conf_docs ] # Grab indices with respect to all documents of low_conf_docs
         cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, low_conf_indices, num_expected, vocab_words)
-        for keywords in cluster_keywords:
-            print(f"Cluster Words :{keywords}")
-
+        for i,keywords in enumerate(cluster_keywords):
+            print(f"Cluster #{i} Words :{keywords}")
+        save_dict_data[f"keywords_gen{gen}"] = cluster_keywords            
+        user_kept = [int(x) for x in input("Choose which clusters to keep:\n").split()]
+        print(f"User_kept = {user_kept}")
+        # ^ Allows for user to choose which clusters to keep and which to toss out.
+        
         # Generating class representations
         print(f"Generating low-conf class reps gen{gen}")
         low_conf_class_reps = [ generate_class_representation(keywords, lm_type, layer, data_dir) for keywords in cluster_keywords ]
@@ -160,22 +166,21 @@ def main(dataset_name,
         low_conf_class_reps = np.array(low_conf_class_reps)
         # Selecting class representations
         print(f"Matching new class reps gen{gen}")
-        from scipy.optimize import linear_sum_assignment as hungarian
-        class_rep_similarity = cosine_similarity_embeddings(low_conf_class_reps, class_representations_no_pca)
-        row_ind, col_ind = hungarian(class_rep_similarity, maximize=False)
-        # user_chosen_tossout = [int(x) for x in input("Choose which clusters to toss out:\n").split()]
-        # ^ Allows for user to choose which clusters to keep and which to toss out.
-        # row_ind is list of cluster numbers to be tossed out. Remaining row indices correspond to our new class representations
-        generated_class_reps = [ low_conf_class_reps[i] for i in range(num_expected) if i not in row_ind ]
+#         from scipy.optimize import linear_sum_assignment as hungarian
+#         class_rep_similarity = cosine_similarity_embeddings(low_conf_class_reps, class_representations_no_pca)
+#         row_ind, col_ind = hungarian(class_rep_similarity, maximize=False)
+#         row_ind is list of cluster numbers to be tossed out. Remaining row indices correspond to our new class representations
+
+        generated_class_reps = [ low_conf_class_reps[i] for i in user_kept ]
         # Finalizing class representations for next generation of document representations
         final_class_representations = np.concatenate((class_representations_no_pca, generated_class_reps))
         for i in range(num_expected):
-            if i not in row_ind:
+            if i in user_kept:
                 print(f"Keeping cluster #{i} with keywords: {cluster_keywords[i]}")
         print(f"final_class_representations.shape = {final_class_representations.shape}") # Should be (num_expected)x(768)
         if final_class_representations.shape != (num_expected,768):
-            print("final_class_representations shape is wrong.")
-            return
+            print("final_class_representations shape is not 9x768, not necessarily a problem.")
+#             return
 
         # Recalculate new document representations for all documents, these are class aligned with both the known and generated classes
         print(f"Generating doc reps gen{gen}")
@@ -183,9 +188,10 @@ def main(dataset_name,
         print(f"Saving gen{gen} representations")
         save_dict_data[f"class_representations_gen{gen}"] = final_class_representations
         save_dict_data[f"doc_representations_gen{gen}"] = final_doc_representations
+        
         # Initialize representations for next generation
-        class_representations = final_class_representations
-        document_representations = final_doc_representations
+#         class_representations = final_class_representations
+        document_representations_no_pca = final_doc_representations # Overwrite unPCA-ed doc reps for next generation
         if do_pca:
             print(f"PCA on gen{gen} class/doc reps")
             _pca = PCA(n_components=pca, random_state=random_state)
@@ -201,7 +207,7 @@ def main(dataset_name,
         save_dict_data[f"distance_gen{gen}"] = distance
         save_dict_data["num_generations"] = gen
         # Save after every generation, overwriting previous generations' pickle files is ok.
-        with open(os.path.join(data_dir, f"data.{naming_suffix}_multiGen.pk"), "wb") as f:
+        with open(os.path.join(data_dir, f"data.{naming_suffix}_multiGen_manual.pk"), "wb") as f:
             pk.dump(save_dict_data, f)
         print(f"Finished generation #{gen}")            
 
