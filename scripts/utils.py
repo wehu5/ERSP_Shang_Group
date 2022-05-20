@@ -69,7 +69,7 @@ def evaluate_predictions(true_class, predicted_class, output_to_console=True, re
     disp.plot()
     plt.title("NYT-Topics")
     plt.xticks(rotation=45)
-    disp.show()
+    plt.show()
         
     if return_tuple:
         return confusion, f1_macro, f1_micro
