@@ -52,8 +52,8 @@ def most_common(L):
 
 
 def evaluate_predictions(true_class, predicted_class, output_to_console=True, return_tuple=False):
-    labels = ['business','politics','sports','health','education','estate','arts','science','technology']
-    confusion = confusion_matrix(true_class, predicted_class, labels=labels)
+    
+    confusion = confusion_matrix(true_class, predicted_class)
     if output_to_console:
         print("-" * 80 + "Evaluating" + "-" * 80)
         print(confusion)
@@ -66,7 +66,8 @@ def evaluate_predictions(true_class, predicted_class, output_to_console=True, re
     # Adding matplotlib confusion matrix
     from sklearn.metrics import ConfusionMatrixDisplay
     import matplotlib.pyplot as plt
-    disp = ConfusionMatrixDisplay(confusion_matrix=confusion)
+    labels = ['business','politics','sports','health','education','estate','arts','science','technology']
+    disp = ConfusionMatrixDisplay(confusion_matrix=confusion, display_labels=labels)
     disp.plot()
     plt.title("NYT-Topics")
     plt.xticks(rotation=45)
