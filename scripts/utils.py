@@ -54,6 +54,10 @@ def most_common(L):
 def evaluate_predictions(true_class, predicted_class, output_to_console=True, return_tuple=False):
     
     confusion = confusion_matrix(true_class, predicted_class)
+    # Manually swapping columns for evaluation
+    confusion[:, [4,6]] = confusion[:, [6,4]]
+    confusion[:, [5,6]] = confusion[:, [6,5]]
+    
     if output_to_console:
         print("-" * 80 + "Evaluating" + "-" * 80)
         print(confusion)
