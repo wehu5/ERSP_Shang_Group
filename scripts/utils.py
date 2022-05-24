@@ -70,7 +70,8 @@ def evaluate_predictions(true_class, predicted_class, output_to_console=True, re
         # Arts --> Education
         if predicted_class[i] == 6:
             predicted_class_swapped[i] = 4
-    
+    print(predicted_class[:100])
+    print(predicted_class_swapped[:100])
     if output_to_console:
         print("-" * 80 + "Evaluating" + "-" * 80)
         print(confusion)
