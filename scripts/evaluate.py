@@ -26,8 +26,8 @@ def evaluate(dataset, stage, suffix=None):
     elif stage == "Align":
         with open(os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, dataset, f"data.{suffix}.pk"), "rb") as f:
             dictionary = pickle.load(f)
-            gen = dictionary["num_generations"]
-            documents_to_class = dictionary[f"documents_to_class_gen{gen}"]
+            num_generations = dictionary["num_generations"]
+            documents_to_class = dictionary[f"documents_to_class_gen{num_generations}"]
             print(f"num_generations = {num_generations}")
             evaluate_predictions(gold_labels, documents_to_class)
     else:
