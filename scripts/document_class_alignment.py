@@ -117,6 +117,7 @@ def main(dataset_name,
     data_dir = os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, dataset_name)
     print(f"naming_suffix: {naming_suffix}")
     print(f"data_dir: {data_dir}")
+
     # Import needed data
     tokenization_info, class_representations_no_pca, document_representations_no_pca, raw_document_representations_no_pca, vocab_words = importData(data_dir, lm_type, layer, document_repr_type)  
 #     Perform PCA on representations    
@@ -184,6 +185,7 @@ def main(dataset_name,
 
         # Recalculate new document representations for all documents, these are class aligned with both the known and generated classes
         print(f"Generating doc reps gen{gen}")
+
         final_doc_representations = generate_doc_representations(final_class_representations, attention_mechanism, lm_type, layer, data_dir)
         print(f"Saving gen{gen} representations")
         save_dict_data[f"class_representations_gen{gen}"] = final_class_representations
