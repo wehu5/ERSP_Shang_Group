@@ -17,23 +17,10 @@ from tqdm import tqdm
 from operator import itemgetter
 from collections import defaultdict
 
-def generate_keywords(tokenization_info, doc_to_class, doc_indices, num_clusters):
+def generate_keywords(tokenization_info, doc_to_class, doc_indices, num_clusters, vocab_words):
     # get only low-confidence documents
     docs = [tokenization_info[i][0] for i in doc_indices ]
-
-    # num_clusters = len(classes)
-    # Sanity-check
-    # print(f"Number of classes = {len(classes)}")
-    print(min(doc_to_class))
-    print(len(docs))
-    # Prints first 10 words of first doc
-    print(docs[0][0:10])
-    # Prints length of first doc
-    print(len(docs[0]))
-    # Prints first entirety of first 10 docs
-    for i in range(10):
-        print(f"document #{i} = {docs[i]}\n\n\n")
-
+    
     # The list cluster_sizes will hold number of documents per cluster.
     cluster_sizes = [ 0 for i in range(num_clusters) ]
     for prediction in doc_to_class:
@@ -50,14 +37,18 @@ def generate_keywords(tokenization_info, doc_to_class, doc_indices, num_clusters
     doc_dicts = [ defaultdict(int) for i in range(len(docs)) ]
     cluster_dicts = [ defaultdict(int) for i in range(num_clusters) ]
 
+    print(f"Size of vocab_words = {len(vocab_words)}")
+    vocab_words_dict = { word:1 for word in vocab_words }
+    
     #Filling document-level dictionaries
     for i,doc in enumerate(tqdm(docs)):
         # Count up frequencies of unique words in ith doc
         for word in doc:
-            doc_dicts[i][word] += 1
-        # Sanity-check frequencies
-        if sum(doc_dicts[i].values()) != len(doc):
-            print("doc_dict has different number of words than actual document.")
+            if word in vocab_words_dict:
+              doc_dicts[i][word] += 1
+#         # Sanity-check frequencies
+#         if sum(doc_dicts[i].values()) != len(doc):
+#             print("doc_dict has different number of words than actual document.")
 
     # Filling in cluster_dicts. cluster_dict[i] will be a dictionary mapping 
     # a unique word appearing in that cluster's documents with how many documents
@@ -79,7 +70,7 @@ def generate_keywords(tokenization_info, doc_to_class, doc_indices, num_clusters
         keys_to_remove = []
         # If key appears in less than args.threshold of documents for this cluster, prepare for removal.
         for key in cluster_dict:
-            if cluster_dict[key]/cluster_sizes[i] <= 0.02:
+            if cluster_dict[key]/cluster_sizes[i] <= 0.10:
                 keys_to_remove.append(key)
         # Remove keys
         for key in keys_to_remove:
@@ -124,12 +115,13 @@ def generate_class_representation(keywords, lm_type, layer, data_folder):
         static_word_representations = vocab["static_word_representations"]
         word_to_index = vocab["word_to_index"]
 
-    print("Finish reading data")
+#     print("Finish reading data")
 
     class_words_representations = [static_word_representations[word_to_index[word]]
                                    for word in keywords]
 
     cls_repr = average_with_harmonic_series(class_words_representations)
+#     cls_repr = np.average(class_words_representations, axis=0)
 
     return cls_repr
 

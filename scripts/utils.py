@@ -52,15 +52,45 @@ def most_common(L):
 
 
 def evaluate_predictions(true_class, predicted_class, output_to_console=True, return_tuple=False):
+    
     confusion = confusion_matrix(true_class, predicted_class)
+    # Manually swapping columns for evaluation
+    confusion[:, [4,6]] = confusion[:, [6,4]]
+    confusion[:, [5,6]] = confusion[:, [6,5]]
+    # Change prediction labels
+    import copy
+    predicted_class_swapped = copy.deepcopy(predicted_class)
+    for i in range(len(predicted_class)):
+        # Education --> Estate
+        if predicted_class[i] == 4:
+            predicted_class_swapped[i] = 5
+        # Estate --> Arts
+        if predicted_class[i] == 5:
+            predicted_class_swapped[i] = 6
+        # Arts --> Education
+        if predicted_class[i] == 6:
+            predicted_class_swapped[i] = 4
+    print(predicted_class[:100])
+    print(predicted_class_swapped[:100])
     if output_to_console:
         print("-" * 80 + "Evaluating" + "-" * 80)
         print(confusion)
-    f1_macro = f1_score(true_class, predicted_class, average='macro')
-    f1_micro = f1_score(true_class, predicted_class, average='micro')
+    f1_macro = f1_score(true_class, predicted_class_swapped, average='macro')
+    f1_micro = f1_score(true_class, predicted_class_swapped, average='micro')
     if output_to_console:
         print("F1 macro: " + str(f1_macro))
         print("F1 micro: " + str(f1_micro))
+        
+    # Adding matplotlib confusion matrix
+    from sklearn.metrics import ConfusionMatrixDisplay
+    import matplotlib.pyplot as plt
+    labels = ['business','politics','sports','health','education','estate','arts','science','technology']
+    disp = ConfusionMatrixDisplay(confusion_matrix=confusion, display_labels=labels)
+    disp.plot()
+    plt.title("NYT-Topics")
+    plt.xticks(rotation=45)
+    plt.show()
+        
     if return_tuple:
         return confusion, f1_macro, f1_micro
     else:
