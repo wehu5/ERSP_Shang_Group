@@ -160,10 +160,11 @@ def main(dataset_name,
         
         # Generating class representations
         print(f"Generating low-conf class reps gen{gen}")
-        low_conf_class_reps = [ generate_class_representation(keywords, lm_type, layer, data_dir) for keywords in cluster_keywords ]
-        if len(low_conf_class_reps) != num_expected:
-            print("Incorrect number of generated class representations.")
-            return
+        low_conf_class_reps = [ generate_class_representation(keywords, lm_type, layer, data_dir) for i,keywords in enumerate(cluster_keywords) if i in user_kept ]
+        print(f"low_conf_class_reps length = {len(low_conf_class_reps)}")
+        # if len(low_conf_class_reps) != num_expected:
+        #     print("Incorrect number of generated class representations.")
+        #     return
         low_conf_class_reps = np.array(low_conf_class_reps)
         # Selecting class representations
         print(f"Matching new class reps gen{gen}")
@@ -172,7 +173,7 @@ def main(dataset_name,
 #         row_ind, col_ind = hungarian(class_rep_similarity, maximize=False)
 #         row_ind is list of cluster numbers to be tossed out. Remaining row indices correspond to our new class representations
 
-        generated_class_reps = [ low_conf_class_reps[i] for i in user_kept ]
+        generated_class_reps = low_conf_class_reps   # [ low_conf_class_reps[i] for i in user_kept ]
         # Finalizing class representations for next generation of document representations
         final_class_representations = np.concatenate((class_representations_no_pca, generated_class_reps))
         for i in range(num_expected):
