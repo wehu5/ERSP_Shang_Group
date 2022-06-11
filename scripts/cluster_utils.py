@@ -1,4 +1,4 @@
-from document_representations import weight_sentence
+from document_representations import weight_sentence, average_with_harmonic_series
 from utils import (INTERMEDIATE_DATA_FOLDER_PATH, MODELS,
                    cosine_similarity_embedding, cosine_similarity_embeddings,
                    evaluate_predictions, tensor_to_numpy)
@@ -17,26 +17,10 @@ from tqdm import tqdm
 from operator import itemgetter
 from collections import defaultdict
 
-def generate_keywords(doc_to_class, num_clusters):
+def generate_keywords(tokenization_info, doc_to_class, doc_indices, num_clusters, vocab_words):
+    # get only low-confidence documents
+    docs = [tokenization_info[i][0] for i in doc_indices ]
     
-    with open(os.path.join(data_folder, f"tokenization_lm-{lm_type}-{layer}.pk"), "rb") as f:
-        tokenization_info = pk.load(f)["tokenization_info"]
-    
-    docs = [x[0] for x in tokenization_info]
-
-    # num_clusters = len(classes)
-    # Sanity-check
-    # print(f"Number of classes = {len(classes)}")
-    print(min(doc_to_class))
-    print(len(docs))
-    # Prints first 10 words of first doc
-    print(docs[0][0:10])
-    # Prints length of first doc
-    print(len(docs[0]))
-    # Prints first entirety of first 10 docs
-    for i in range(10):
-        print(f"document #{i} = {docs[i]}\n\n\n")
-
     # The list cluster_sizes will hold number of documents per cluster.
     cluster_sizes = [ 0 for i in range(num_clusters) ]
     for prediction in doc_to_class:
@@ -53,14 +37,18 @@ def generate_keywords(doc_to_class, num_clusters):
     doc_dicts = [ defaultdict(int) for i in range(len(docs)) ]
     cluster_dicts = [ defaultdict(int) for i in range(num_clusters) ]
 
+    print(f"Size of vocab_words = {len(vocab_words)}")
+    vocab_words_dict = { word:1 for word in vocab_words }
+    
     #Filling document-level dictionaries
     for i,doc in enumerate(tqdm(docs)):
         # Count up frequencies of unique words in ith doc
         for word in doc:
-            doc_dicts[i][word] += 1
-        # Sanity-check frequencies
-        if sum(doc_dicts[i].values()) != len(doc):
-            print("doc_dict has different number of words than actual document.")
+            if word in vocab_words_dict:
+              doc_dicts[i][word] += 1
+#         # Sanity-check frequencies
+#         if sum(doc_dicts[i].values()) != len(doc):
+#             print("doc_dict has different number of words than actual document.")
 
     # Filling in cluster_dicts. cluster_dict[i] will be a dictionary mapping 
     # a unique word appearing in that cluster's documents with how many documents
@@ -82,7 +70,7 @@ def generate_keywords(doc_to_class, num_clusters):
         keys_to_remove = []
         # If key appears in less than args.threshold of documents for this cluster, prepare for removal.
         for key in cluster_dict:
-            if cluster_dict[key]/cluster_sizes[i] <= args.threshold:
+            if cluster_dict[key]/cluster_sizes[i] <= 0.10:
                 keys_to_remove.append(key)
         # Remove keys
         for key in keys_to_remove:
@@ -106,7 +94,7 @@ def generate_keywords(doc_to_class, num_clusters):
                 cluster_dict.pop(key, None)
 
     #Printing out each cluster-dictionary's highest-frequency keys.
-    keyword_lists = [ [] for cluster in cluster_dicts ]
+    keyword_lists = [ None for cluster in cluster_dicts ]
     for i,cluster_dict in enumerate(cluster_dicts):
         # List of (key, value) tuples for cluster_dict:
         key_to_docFreqs = list(cluster_dict.items())
@@ -114,14 +102,12 @@ def generate_keywords(doc_to_class, num_clusters):
         key_to_docFreqs.sort(key=itemgetter(1), reverse=True)
         # Print info
         print(f"Class/cluster #{i} has {len(key_to_docFreqs)} generated keywords.")
-        print(f"Top keywords are: {key_to_docFreqs[0:10]}")
-        for j in range(10):
-            keyword_lists[i].append(key_to_docFreqs[j][0])
-    # Sanity-check
-    print(f"keyword_lists.shape = {keyword_lists.shape}")
+        keyword_lists[i] = [ word for (word,freq) in key_to_docFreqs ]
+        keyword_lists[i] = keyword_lists[i][:10]
+
     return keyword_lists    
 
-def generate_class_representation(keywords, lm_type, layer):
+def generate_class_representation(keywords, lm_type, layer, data_folder):
 
     static_repr_path = os.path.join(data_folder, f"static_repr_lm-{lm_type}-{layer}.pk")
     with open(static_repr_path, "rb") as f:
@@ -129,16 +115,17 @@ def generate_class_representation(keywords, lm_type, layer):
         static_word_representations = vocab["static_word_representations"]
         word_to_index = vocab["word_to_index"]
 
-    print("Finish reading data")
+#     print("Finish reading data")
 
-    class_words_representations = [[static_word_representations[word_to_index[word]]]
+    class_words_representations = [static_word_representations[word_to_index[word]]
                                    for word in keywords]
 
     cls_repr = average_with_harmonic_series(class_words_representations)
+#     cls_repr = np.average(class_words_representations, axis=0)
 
     return cls_repr
 
-def generate_doc_representations(class_representations, attention_mechanism,lm_type, layer):
+def generate_doc_representations(class_representations, attention_mechanism,lm_type, layer, data_folder):
     
     static_repr_path = os.path.join(data_folder, f"static_repr_lm-{lm_type}-{layer}.pk")
     with open(static_repr_path, "rb") as f:
@@ -147,7 +134,7 @@ def generate_doc_representations(class_representations, attention_mechanism,lm_t
     with open(os.path.join(data_folder, f"tokenization_lm-{lm_type}-{layer}.pk"), "rb") as f:
         tokenization_info = pk.load(f)["tokenization_info"]
 
-    model_class, tokenizer_class, pretrained_weights = MODELS[args.lm_type]
+    model_class, tokenizer_class, pretrained_weights = MODELS[lm_type]
     model = model_class.from_pretrained(pretrained_weights, output_hidden_states=True)
     model.eval()
     model.cuda()

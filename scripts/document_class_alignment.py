@@ -22,6 +22,23 @@ from utils import (INTERMEDIATE_DATA_FOLDER_PATH, cosine_similarity_embedding,
 from cluster_utils import (generate_keywords, generate_class_representation, 
                     generate_doc_representations)
 
+
+def importData(data_dir, lm_type, layer, document_repr_type):
+#     with open(os.path.join(data_dir, "dataset.pk"), "rb") as f:
+#         dictionary = pk.load(f)
+#         class_names = dictionary["class_names"]
+    with open(os.path.join(data_dir, f"tokenization_lm-{lm_type}-{layer}.pk"), "rb") as f:
+        tokenization_info = pk.load(f)["tokenization_info"]
+    with open(os.path.join(data_dir, f"document_repr_lm-{lm_type}-{layer}-{document_repr_type}.pk"), "rb") as f:
+        dictionary = pk.load(f)
+        class_representations = dictionary["class_representations"]
+        document_representations = dictionary["document_representations"]
+        raw_document_representations = dictionary["raw_document_representations"]
+    with open(os.path.join(data_dir, f"static_repr_lm-{lm_type}-{layer}.pk"), "rb") as f:
+        dictionary = pk.load(f)
+        vocab_words = dictionary["vocab_words"]
+    return tokenization_info, class_representations, document_representations, raw_document_representations, vocab_words
+  
 #Partitions document representations into low and high confidence groups
 def partitionDataset(threshold, doc_reps, known_class_reps):
     #Matrix of cosine similarities with respect to known class representations
@@ -29,9 +46,6 @@ def partitionDataset(threshold, doc_reps, known_class_reps):
     document_class_assignment = np.argmax(cosine_similarities, axis=1) #Cosine similarity predictions
     low_conf_docs = []
     high_conf_docs = []
-    #Closest of the known classes based on similarity between doc_rep and known_class_reps.
-    #Note: uses indices relative to known_class_reps, so the indices don't make sense when
-    #referring to all original classes.    
     for i,doc_rep in enumerate(doc_reps):
         doc_tuple = (doc_rep, i)
         cosine_predicted_class = document_class_assignment[i] #Prediction out of known classes
@@ -40,12 +54,10 @@ def partitionDataset(threshold, doc_reps, known_class_reps):
             high_conf_docs.append(doc_tuple)
         else:
             low_conf_docs.append(doc_tuple)
-
     #Check partition sizes
     print(f"Confidence threshold = {threshold}")
     print(f"Number of low confidence docs = {len(low_conf_docs)}")
     print(f"Number of high confidence docs = {len(high_conf_docs)}")
-
     return low_conf_docs, high_conf_docs, document_class_assignment
 
 def replace_with_raw(low_conf_docs, raw_doc_reps):
@@ -53,6 +65,29 @@ def replace_with_raw(low_conf_docs, raw_doc_reps):
     for doc, index in low_conf_docs:
         raw_low_conf_docs.append(raw_doc_reps[index])
     return raw_low_conf_docs
+
+def finalGMM(final_doc_representations, final_class_representations, num_expected, random_state):
+    cosine_similarities = cosine_similarity_embeddings(final_doc_representations, final_class_representations)
+    document_class_assignment = np.argmax(cosine_similarities, axis=1)
+    document_class_assignment_matrix = np.zeros((final_doc_representations.shape[0], num_expected))
+    for i in range(final_doc_representations.shape[0]):
+        document_class_assignment_matrix[i][document_class_assignment[i]] = 1.0
+    document_class_assignment_summary = np.sum(document_class_assignment_matrix, axis=0)
+    print(f"GMM number of initializations per class: {document_class_assignment_summary}")
+    # Performing final GMM
+    gmm = GaussianMixture(n_components=num_expected, covariance_type='tied',
+                          random_state=random_state,
+                          n_init=999, warm_start=True)
+    gmm.converged_ = "HACK"
+    gmm._initialize(final_doc_representations, document_class_assignment_matrix)
+    gmm.lower_bound_ = -np.infty
+    gmm.fit(final_doc_representations)
+
+    documents_to_class = gmm.predict(final_doc_representations)
+    centers = gmm.means_
+    distance = -gmm.predict_proba(final_doc_representations) + 1
+    return documents_to_class, centers, distance
+
 
 def main(dataset_name,
          pca,
@@ -64,137 +99,120 @@ def main(dataset_name,
          layer,
          random_state,
          num_expected):
+    
+    '''#####################
+    INITIAL DATA PREPARATION
+    #####################'''
+    # Save arguments
+    do_pca = pca != 0  # pca = 0 means no pca
     save_dict_data = {}
-
-    # pca = 0 means no pca
-    do_pca = pca != 0
-
     save_dict_data["dataset_name"] = dataset_name
     save_dict_data["pca"] = pca
     save_dict_data["cluster_method"] = cluster_method
     save_dict_data["lm_type"] = lm_type
     save_dict_data["document_repr_type"] = document_repr_type
     save_dict_data["random_state"] = random_state
-
-    naming_suffix = f"pca{pca}.clus{cluster_method}.{lm_type}.{document_repr_type}.{random_state}"
-    print(f"naming_suffix: {naming_suffix}")
-
+    # File names and directories
+    naming_suffix = f"pca{pca}.clus{cluster_method}.{lm_type}-{layer}.{document_repr_type}.{random_state}"
     data_dir = os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, dataset_name)
+    print(f"naming_suffix: {naming_suffix}")
     print(f"data_dir: {data_dir}")
 
-    with open(os.path.join(data_dir, "dataset.pk"), "rb") as f:
-        dictionary = pk.load(f)
-        class_names = dictionary["class_names"]
-        num_classes = len(class_names)
-        print(class_names)
-
-    # huh?
-    with open(os.path.join(data_dir, f"document_repr_lm-{lm_type}-{document_repr_type}.pk"), "rb") as f:
-        dictionary = pk.load(f)
-        document_representations = dictionary["document_representations"]
-        class_representations = dictionary["class_representations"]
-        raw_document_representations = dictionary["raw_document_representations"]
-        repr_prediction = np.argmax(cosine_similarity_embeddings(document_representations, class_representations),
-                                    axis=1)
-        save_dict_data["repr_prediction"] = repr_prediction
+    # Import needed data
+    tokenization_info, class_representations_no_pca, document_representations_no_pca, raw_document_representations_no_pca, vocab_words = importData(data_dir, lm_type, layer, document_repr_type)  
+#     Perform PCA on representations    
+#     class_representations_no_pca = class_representations
 
 
-    if do_pca:
-        _pca = PCA(n_components=pca, random_state=random_state)
-        document_representations = _pca.fit_transform(document_representations)
-        raw_document_representations = _pca.transform(raw_document_representations)
-        class_representations = _pca.transform(class_representations)
-        print(f"Explained variance: {sum(_pca.explained_variance_ratio_)}")
-
-    # partition dataset
-    low_conf_docs, high_conf_docs, document_class_assignment = partitionDataset(0.10, document_representations, class_representations)
-
-    # cluster low-confidence documents
-    low_conf_doc_reps = replace_with_raw(low_conf_docs, raw_document_representations)
-    kmeans = KMeans(n_clusters=num_expected, random_state=random_state, init='k-means++')
-    kmeans.fit(low_conf_doc_reps)
-
-    # Get kmeans predictions, cluster centers
-    low_conf_doc_predictions = kmeans.predict(low_conf_doc_reps)
-    
-    #  do we need this? idk
-    low_conf_centers = kmeans.cluster_centers_
-
-    # keyword generation
-    # ->
-    cluster_keywords = generate_keywords(low_conf_doc_predictions, num_expected)
-
-    for keywords in cluster_keywords:
-        print("Cluster Words :")
-        print(keywords)
-
-    return
-
-    # class representations building 
-    # -> final_class_representations
-
-    # MUST DO BELOW
-    # final_class_representations = np.array(final_class_representations)
-
-    if rep_type == 'generated':
-
-        # put together new document representations from all documents
-        # these are class aligned with the new classes
-        # -> final_doc_representations
-
-        # final_doc_representations = generate_doc_representations(final_class_representations, attention_mechanism, lm_type, layer)
-
+    '''#####################
+     MAIN LOOP: Generations
+    #####################'''      
+    for gen in range(1,4):
+        print(f"Starting generation #{gen}")
+        print(f"Initial PCA for gen{gen}")
         if do_pca:
+            _pca = PCA(n_components=pca, random_state=random_state)
+            document_representations        = _pca.fit_transform(document_representations_no_pca)
+            raw_document_representations    = _pca.transform(raw_document_representations_no_pca)
+            class_representations           = _pca.transform(class_representations_no_pca)
+            print(f"Explained variance: {sum(_pca.explained_variance_ratio_)}")        
+        # Partitioning dataset 
+        print(f"Partitioning documents gen{gen}")
+        low_conf_docs, high_conf_docs, document_class_assignment = partitionDataset(0.10, document_representations, class_representations)
+
+        # Cluster low-confidence documents 
+        print(f"Clustering lowconf gen{gen}")
+        low_conf_doc_reps = replace_with_raw(low_conf_docs, raw_document_representations)
+        gmm = GaussianMixture(n_components=num_expected, covariance_type='tied', random_state=random_state, n_init=30, warm_start=False, verbose=0)
+        gmm.fit(low_conf_doc_reps) 
+        low_conf_doc_predictions = gmm.predict(low_conf_doc_reps) 
+
+        # Generate keywords
+        print(f"Generating keywords gen{gen}")
+        low_conf_indices = [ doc_tuple[1] for doc_tuple in low_conf_docs ] # Grab indices with respect to all documents of low_conf_docs
+        cluster_keywords = generate_keywords(tokenization_info, low_conf_doc_predictions, low_conf_indices, num_expected, vocab_words)
+        for i,keywords in enumerate(cluster_keywords):
+            print(f"Cluster #{i} Words :{keywords}")
+        save_dict_data[f"keywords_gen{gen}"] = cluster_keywords            
+        user_kept = [int(x) for x in input("Choose which clusters to keep:\n").split()]
+        print(f"User_kept = {user_kept}")
+        # ^ Allows for user to choose which clusters to keep and which to toss out.
+        
+        # Generating class representations
+        print(f"Generating low-conf class reps gen{gen}")
+        low_conf_class_reps = [ generate_class_representation(keywords, lm_type, layer, data_dir) for i,keywords in enumerate(cluster_keywords) if i in user_kept ]
+        print(f"low_conf_class_reps length = {len(low_conf_class_reps)}")
+        # if len(low_conf_class_reps) != num_expected:
+        #     print("Incorrect number of generated class representations.")
+        #     return
+        low_conf_class_reps = np.array(low_conf_class_reps)
+        # Selecting class representations
+        print(f"Matching new class reps gen{gen}")
+#         from scipy.optimize import linear_sum_assignment as hungarian
+#         class_rep_similarity = cosine_similarity_embeddings(low_conf_class_reps, class_representations_no_pca)
+#         row_ind, col_ind = hungarian(class_rep_similarity, maximize=False)
+#         row_ind is list of cluster numbers to be tossed out. Remaining row indices correspond to our new class representations
+
+        generated_class_reps = low_conf_class_reps   # [ low_conf_class_reps[i] for i in user_kept ]
+        # Finalizing class representations for next generation of document representations
+        final_class_representations = np.concatenate((class_representations_no_pca, generated_class_reps))
+        for i in range(num_expected):
+            if i in user_kept:
+                print(f"Keeping cluster #{i} with keywords: {cluster_keywords[i]}")
+        print(f"final_class_representations.shape = {final_class_representations.shape}") # Should be (num_expected)x(768)
+        if final_class_representations.shape != (num_expected,768):
+            print("final_class_representations shape is not 9x768, not necessarily a problem.")
+#             return
+
+        # Recalculate new document representations for all documents, these are class aligned with both the known and generated classes
+        print(f"Generating doc reps gen{gen}")
+
+        final_doc_representations = generate_doc_representations(final_class_representations, attention_mechanism, lm_type, layer, data_dir)
+        print(f"Saving gen{gen} representations")
+        save_dict_data[f"class_representations_gen{gen}"] = final_class_representations
+        save_dict_data[f"doc_representations_gen{gen}"] = final_doc_representations
+        
+        # Initialize representations for next generation
+#         class_representations = final_class_representations
+        document_representations_no_pca = final_doc_representations # Overwrite unPCA-ed doc reps for next generation
+        if do_pca:
+            print(f"PCA on gen{gen} class/doc reps")
             _pca = PCA(n_components=pca, random_state=random_state)
             final_doc_representations = _pca.fit_transform(final_doc_representations)
             final_class_representations = _pca.transform(final_class_representations)
             print(f"Final explained variance: {sum(_pca.explained_variance_ratio_)}")
-        
-    elif rep_type == "raw":
 
-        # put together document representations from high + raw from low, excluding ill performing
-        # -> final_doc_representations
-
-    if cluster_method == 'gmm':
-
-        cosine_similarities = cosine_similarity_embeddings(final_doc_representations, final_class_representations)
-        document_class_assignment = np.argmax(cosine_similarities, axis=1)
-        document_class_assignment_matrix = np.zeros((final_doc_representations.shape[0], num_expected))
-        for i in range(final_doc_representations.shape[0]):
-            document_class_assignment_matrix[i][document_class_assignment[i]] = 1.0
-
-        gmm = GaussianMixture(n_components=num_expected, covariance_type='tied',
-                              random_state=random_state,
-                              n_init=999, warm_start=True)
-        gmm.converged_ = "HACK"
-
-        gmm._initialize(final_doc_representations, document_class_assignment_matrix)
-        gmm.lower_bound_ = -np.infty
-        gmm.fit(final_doc_representations)
-
-        documents_to_class = gmm.predict(final_doc_representations)
-        centers = gmm.means_
-        save_dict_data["centers"] = centers
-        distance = -gmm.predict_proba(final_doc_representations) + 1
-
-    elif cluster_method == 'kmeans':
-
-        kmeans = KMeans(n_clusters=num_expected, init=final_class_representations, random_state=random_state)
-        kmeans.fit(final_doc_representations)
-
-        documents_to_class = kmeans.predict(final_doc_representations)
-        centers = kmeans.cluster_centers_
-        save_dict_data["centers"] = centers
-        distance = np.zeros((final_doc_representations.shape[0], centers.shape[0]), dtype=float)
-        for i, _emb_a in enumerate(final_doc_representations):
-            for j, _emb_b in enumerate(centers):
-                distance[i][j] = np.linalg.norm(_emb_a - _emb_b)
-
-    save_dict_data["documents_to_class"] = documents_to_class
-    save_dict_data["distance"] = distance
-
-    with open(os.path.join(data_dir, f"data.{naming_suffix}.pk"), "wb") as f:
-        pk.dump(save_dict_data, f)
+        # Final GMM clustering results
+        print(f"Final GMM on gen{gen} doc reps")
+        documents_to_class, centers, distance = finalGMM(final_doc_representations, final_class_representations, num_expected, random_state)
+        save_dict_data[f"documents_to_class_gen{gen}"] = documents_to_class
+        save_dict_data[f"centers_gen{gen}"] = centers
+        save_dict_data[f"distance_gen{gen}"] = distance
+        save_dict_data["num_generations"] = gen
+        # Save after every generation, overwriting previous generations' pickle files is ok.
+        with open(os.path.join(data_dir, f"data.{naming_suffix}_multiGen_manual.pk"), "wb") as f:
+            pk.dump(save_dict_data, f)
+        print(f"Finished generation #{gen}")            
 
 
 if __name__ == '__main__':
@@ -206,7 +224,7 @@ if __name__ == '__main__':
     parser.add_argument("--cluster_method", choices=["gmm", "kmeans"], default="gmm")
     parser.add_argument("--rep_type", choices=["generated", "raw"], default="generated")
     # language model + layer
-    parser.add_argument("--lm_type", default="bbu-12")
+    parser.add_argument("--lm_type", default="bbu")
     # attention mechanism + T
     parser.add_argument("--document_repr_type", default="mixture-100")
     parser.add_argument("--attention_mechanism", type=str, default="mixture")

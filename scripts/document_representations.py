@@ -221,7 +221,7 @@ def main(args):
                                                   vocab,
                                                   _tokenization_info,
                                                   class_representations,
-                                                  none,
+                                                  "none",
                                                   args.layer)
         raw_document_representations.append(raw_document_representation)
     raw_document_representations = np.array(raw_document_representations)
